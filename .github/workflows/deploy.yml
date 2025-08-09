@@ -10,7 +10,7 @@ on:
 
 jobs:
   build-web:
-    runs-on: self_hosted
+    runs-on: baked_battles_runner
 
     steps:
       - uses: actions/checkout@v4
