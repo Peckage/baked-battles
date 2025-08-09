@@ -30,7 +30,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: lint & build the source code
-        run: pnpm run build
+        run: pnpm run build --port 3333
 
       - name: Restart app service
         run: sudo systemctl restart bakedbattles.service
