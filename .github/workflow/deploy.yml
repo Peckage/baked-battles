@@ -5,11 +5,12 @@ name: Deploy BakedBattles
 
 on:
   push:
-    branches: ['canary']
+    branches:
+      - 'canary'
 
 jobs:
   deploy:
-    runs-on: [self-hosted, Linux, X64]   # <-- matches your runner labels
+    runs-on: [self-hosted, Linux, X64, baked_battles_runner]   # <-- matches your runner labels
 
     steps:
       - uses: actions/checkout@v4
