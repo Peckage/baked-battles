@@ -10,7 +10,7 @@ on:
 
 jobs:
   deploy:
-    runs-on: [self-hosted, Linux, X64, baked_battles_runner]   # <-- matches your runner labels
+    runs-on: self-hosted
 
     steps:
       - uses: actions/checkout@v4
