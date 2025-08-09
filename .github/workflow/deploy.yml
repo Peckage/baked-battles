@@ -11,7 +11,7 @@ on:
 
 jobs:
   build-web:
-    runs-on: deploy-bakedbattles
+    runs-on: baked-battles-github-runner
 
     steps:
       - uses: actions/checkout@v4
