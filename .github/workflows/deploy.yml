@@ -10,7 +10,7 @@ on:
 
 jobs:
   build-web:
-    runs-on: baked_battles_runner
+    runs-on: self_hosted
 
     env:
       DATABASE_URL: file:./database.db
