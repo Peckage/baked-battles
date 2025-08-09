@@ -5,9 +5,7 @@ name: Deploy BakedBattles
 
 on:
   push:
-    branches:
-      - 'canary'
-      - 'main'
+    branches: ['canary','main']
 
 jobs:
   build-web:
