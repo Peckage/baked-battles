@@ -6,15 +6,11 @@ name: Deploy baked battles canary
 on:
   push:
     branches:
-      - 'canary'
+      - "canary"
 
 jobs:
   build-web:
     runs-on: self_hosted
-
-    env:
-      DATABASE_URL: file:./database.db
-      JWT_SECRET: SUPER_SECRET
 
     steps:
       - uses: actions/checkout@v4
@@ -28,7 +24,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 23.x
-          cache: 'pnpm'
+          cache: "pnpm"
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
