@@ -55,7 +55,7 @@ export default function Home() {
               <path d="M1 21h22L12 2 1 21Zm12-3h-2v-2h2v2Zm0-4h-2v-4h2v4Z" />
             </svg>
             <p className="text-sm font-medium">
-              Under Construction: rolling, coding, and playtesting. Public alpha soon™.
+              Under Construction: rolling, coding, and playtesting. Games available soon.
             </p>
           </div>
         </section>
