@@ -100,6 +100,22 @@ export default function DrawAndGuess() {
   const [currentGuesser, setCurrentGuesser] = useState(0);
   const [brushSize, setBrushSize] = useState(5);
   const [brushColor, setBrushColor] = useState("#ffffff");
+  const [isCanvasFocused, setIsCanvasFocused] = useState(false);
+  const [particles, setParticles] = useState<Array<{id: number, left: string, top: string, delay: string, duration: string}>>([]);
+
+  // Generate particles client-side to avoid hydration mismatch
+  useEffect(() => {
+    const generateParticles = () => {
+      return Array.from({length: 20}, (_, i) => ({
+        id: i,
+        left: `${Math.random() * 100}%`,
+        top: `${Math.random() * 100}%`,
+        delay: `${Math.random() * 3}s`,
+        duration: `${3 + Math.random() * 4}s`
+      }));
+    };
+    setParticles(generateParticles());
+  }, []);
 
   const initializePlayers = (count: number) => {
     const newPlayers: Player[] = [];
@@ -204,6 +220,59 @@ export default function DrawAndGuess() {
     ctx.fill();
   };
 
+  // Touch event handlers for mobile
+  const handleTouchStart = (e: React.TouchEvent<HTMLCanvasElement>) => {
+    e.preventDefault();
+    if (gameState !== "drawing" || !isCanvasFocused) return;
+    
+    const touch = e.touches[0];
+    const rect = canvasRef.current!.getBoundingClientRect();
+    const scaleX = canvasRef.current!.width / rect.width;
+    const scaleY = canvasRef.current!.height / rect.height;
+    
+    const x = (touch.clientX - rect.left) * scaleX;
+    const y = (touch.clientY - rect.top) * scaleY;
+
+    setIsDrawing(true);
+    
+    // Draw initial point
+    const ctx = canvasRef.current!.getContext("2d");
+    if (ctx) {
+      ctx.globalCompositeOperation = "source-over";
+      ctx.fillStyle = brushColor;
+      ctx.beginPath();
+      ctx.arc(x, y, brushSize, 0, 2 * Math.PI);
+      ctx.fill();
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent<HTMLCanvasElement>) => {
+    e.preventDefault();
+    if (!isDrawing || gameState !== "drawing" || !isCanvasFocused) return;
+    
+    const touch = e.touches[0];
+    const rect = canvasRef.current!.getBoundingClientRect();
+    const scaleX = canvasRef.current!.width / rect.width;
+    const scaleY = canvasRef.current!.height / rect.height;
+    
+    const x = (touch.clientX - rect.left) * scaleX;
+    const y = (touch.clientY - rect.top) * scaleY;
+
+    const ctx = canvasRef.current!.getContext("2d");
+    if (ctx) {
+      ctx.globalCompositeOperation = "source-over";
+      ctx.fillStyle = brushColor;
+      ctx.beginPath();
+      ctx.arc(x, y, brushSize, 0, 2 * Math.PI);
+      ctx.fill();
+    }
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent<HTMLCanvasElement>) => {
+    e.preventDefault();
+    setIsDrawing(false);
+  };
+
   const submitGuess = () => {
     if (!currentGuess.trim()) return;
 
@@ -277,17 +346,33 @@ export default function DrawAndGuess() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-900 via-emerald-900 to-teal-900 text-white">
-      <div className="container mx-auto px-4 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 text-white relative overflow-hidden">
+      {/* Floating particles background */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        {particles.map((particle) => (
+          <div
+            key={particle.id}
+            className="absolute w-2 h-2 bg-white/20 rounded-full animate-float"
+            style={{
+              left: particle.left,
+              top: particle.top,
+              animationDelay: particle.delay,
+              animationDuration: particle.duration
+            }}
+          />
+        ))}
+      </div>
+
+      <div className="container mx-auto px-4 py-8 relative z-10">
         <Link href="/" className="inline-flex items-center text-blue-400 hover:text-blue-300 mb-6">
           ← Back to Games
         </Link>
 
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-green-400 to-emerald-400 bg-clip-text text-transparent">
+          <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-400 bg-clip-text text-transparent animate-gradient-x">
             🎨 Draw & Guess Stoner
           </h1>
-          <p className="text-lg text-gray-300 max-w-2xl mx-auto">
+          <p className="text-lg text-gray-300 max-w-2xl mx-auto animate-glow-pulse">
             The creative drawing game that'll have you in stitches! 
             Draw weird prompts and let your friends guess what masterpiece you've created! 🤣
           </p>
@@ -367,16 +452,43 @@ export default function DrawAndGuess() {
                   </button>
                 </div>
               </div>
+
+              {/* Mobile focus mode toggle */}
+              <div className="mb-4 text-center">
+                <button
+                  onClick={() => setIsCanvasFocused(!isCanvasFocused)}
+                  className={`px-4 py-2 rounded-lg font-semibold transition-all ${
+                    isCanvasFocused 
+                      ? "bg-green-500 text-white shadow-lg shadow-green-500/25" 
+                      : "bg-white/20 text-white hover:bg-white/30"
+                  }`}
+                >
+                  📱 {isCanvasFocused ? "Drawing Mode ON" : "Tap to Enable Drawing Mode"}
+                </button>
+                {isCanvasFocused && (
+                  <p className="text-sm text-yellow-300 mt-2">
+                    ✨ Drawing mode active - screen won't scroll while you draw!
+                  </p>
+                )}
+              </div>
               
               <canvas
                 ref={canvasRef}
                 width={800}
                 height={400}
-                className="w-full border border-white/20 rounded-lg cursor-crosshair bg-gray-900"
+                className={`w-full border-2 rounded-lg cursor-crosshair bg-gray-900 transition-all ${
+                  isCanvasFocused 
+                    ? "border-green-400 shadow-lg shadow-green-400/25" 
+                    : "border-white/20 hover:border-white/40"
+                }`}
+                style={{ touchAction: isCanvasFocused ? 'none' : 'auto' }}
                 onMouseDown={startDrawing}
                 onMouseMove={draw}
                 onMouseUp={stopDrawing}
                 onMouseLeave={stopDrawing}
+                onTouchStart={handleTouchStart}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={handleTouchEnd}
               />
             </div>
 

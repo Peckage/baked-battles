@@ -20,6 +20,21 @@ export default function SpeedTap() {
   const [highScore, setHighScore] = useState(0);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const countdownRef = useRef<NodeJS.Timeout | null>(null);
+  const [particles, setParticles] = useState<Array<{id: number, left: string, top: string, delay: string, duration: string}>>([]);
+
+  // Generate particles client-side to avoid hydration mismatch
+  useEffect(() => {
+    const generateParticles = () => {
+      return Array.from({length: 20}, (_, i) => ({
+        id: i,
+        left: `${Math.random() * 100}%`,
+        top: `${Math.random() * 100}%`,
+        delay: `${Math.random() * 3}s`,
+        duration: `${3 + Math.random() * 4}s`
+      }));
+    };
+    setParticles(generateParticles());
+  }, []);
 
   // Load high score from localStorage
   useEffect(() => {
@@ -47,10 +62,19 @@ export default function SpeedTap() {
     setGameState("countdown");
     setCountdown(3);
     
-    const countdownInterval = setInterval(() => {
+    // Clear any existing countdown interval
+    if (countdownRef.current) {
+      clearInterval(countdownRef.current);
+      countdownRef.current = null;
+    }
+    
+    countdownRef.current = setInterval(() => {
       setCountdown(prev => {
         if (prev <= 1) {
-          clearInterval(countdownInterval);
+          if (countdownRef.current) {
+            clearInterval(countdownRef.current);
+            countdownRef.current = null;
+          }
           startGame();
           return 0;
         }
@@ -61,8 +85,14 @@ export default function SpeedTap() {
 
   const startGame = () => {
     setGameState("playing");
-    setScore(0);
+    setScore(0); // Always reset score when starting a new game/turn
     setTimeLeft(10);
+    
+    // Clear any existing timer first
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
     
     // Start 10 second timer
     intervalRef.current = setInterval(() => {
@@ -108,9 +138,13 @@ export default function SpeedTap() {
       ));
       
       if (currentPlayerIndex < players.length - 1) {
-        // Next player
-        setCurrentPlayerIndex(prev => prev + 1);
-        setTimeout(() => startCountdown(), 2000);
+        // Next player - reset score and show transition
+        setGameState("finished"); // Show current player's result briefly
+        setTimeout(() => {
+          setScore(0); // Reset score for next player
+          setCurrentPlayerIndex(prev => prev + 1);
+          startCountdown();
+        }, 3000); // Give 3 seconds to see the result
       } else {
         // All players done
         setGameState("finished");
@@ -157,17 +191,33 @@ export default function SpeedTap() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-red-900 via-orange-900 to-yellow-900 text-white">
-      <div className="container mx-auto px-4 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 text-white relative overflow-hidden">
+      {/* Floating particles background */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        {particles.map((particle) => (
+          <div
+            key={particle.id}
+            className="absolute w-2 h-2 bg-white/20 rounded-full animate-float"
+            style={{
+              left: particle.left,
+              top: particle.top,
+              animationDelay: particle.delay,
+              animationDuration: particle.duration
+            }}
+          />
+        ))}
+      </div>
+
+      <div className="container mx-auto px-4 py-8 relative z-10">
         <Link href="/" className="inline-flex items-center text-blue-400 hover:text-blue-300 mb-6">
           ← Back to Games
         </Link>
 
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-red-400 to-yellow-400 bg-clip-text text-transparent">
+          <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-400 bg-clip-text text-transparent animate-gradient-x">
             ⚡ Speed Tap
           </h1>
-          <p className="text-lg text-gray-300 max-w-2xl mx-auto">
+          <p className="text-lg text-gray-300 max-w-2xl mx-auto animate-glow-pulse rounded-xl p-2">
             Tap as fast as humanly possible for 10 seconds! Test your reflexes and see who has the fastest fingers!
           </p>
         </div>
@@ -255,10 +305,10 @@ export default function SpeedTap() {
         {gameState === "finished" && (
           <div className="text-center">
             <div className="max-w-lg mx-auto bg-white/10 backdrop-blur-sm rounded-2xl p-8 mb-8">
-              <h2 className="text-3xl font-bold mb-6">🏁 Game Over!</h2>
-              
-              {gameMode === "solo" ? (
+              {gameMode === "multiplayer" && currentPlayerIndex < players.length - 1 ? (
+                /* Show individual result during player transition */
                 <div>
+                  <h2 className="text-3xl font-bold mb-6">{getCurrentPlayer()?.name}'s Result!</h2>
                   <div className="text-6xl font-bold text-red-400 mb-2">{score}</div>
                   <div className="text-xl text-gray-300 mb-4">total taps</div>
                   <div className="text-lg text-yellow-400 mb-4">
@@ -267,59 +317,81 @@ export default function SpeedTap() {
                   <div className="text-lg text-orange-400 mb-6">
                     {getTapMessage(score / 10)}
                   </div>
-                  {score === highScore && score > 0 && (
-                    <div className="text-yellow-400 text-lg mb-4">
-                      🎊 New High Score! 🎊
-                    </div>
-                  )}
+                  <div className="text-gray-400">Next player coming up...</div>
                 </div>
               ) : (
+                /* Final results */
                 <div>
-                  <div className="text-2xl font-bold text-yellow-400 mb-6">
-                    🏆 {getMultiplayerWinner().name} Wins!
-                  </div>
-                  <div className="space-y-3">
-                    {players
-                      .sort((a, b) => (b.result?.score || 0) - (a.result?.score || 0))
-                      .map((player, index) => (
-                      <div 
-                        key={index}
-                        className={`flex justify-between items-center p-3 rounded-lg ${
-                          index === 0 
-                            ? 'bg-yellow-500/20 border border-yellow-500/30' 
-                            : 'bg-white/5'
-                        }`}
-                      >
-                        <span className="font-semibold">
-                          {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}.`} {player.name}
-                        </span>
-                        <div className="text-right">
-                          <div className="font-bold">{player.result?.score || 0} taps</div>
-                          <div className="text-sm text-gray-400">
-                            {player.result?.tapsPerSecond || 0} tps
-                          </div>
-                        </div>
+                  <h2 className="text-3xl font-bold mb-6">🏁 Game Over!</h2>
+                  
+                  {gameMode === "solo" ? (
+                    <div>
+                      <div className="text-6xl font-bold text-red-400 mb-2">{score}</div>
+                      <div className="text-xl text-gray-300 mb-4">total taps</div>
+                      <div className="text-lg text-yellow-400 mb-4">
+                        {(score / 10).toFixed(2)} taps per second
                       </div>
-                    ))}
-                  </div>
+                      <div className="text-lg text-orange-400 mb-6">
+                        {getTapMessage(score / 10)}
+                      </div>
+                      {score === highScore && score > 0 && (
+                        <div className="text-yellow-400 text-lg mb-4">
+                          🎊 New High Score! 🎊
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div>
+                      <div className="text-2xl font-bold text-yellow-400 mb-6">
+                        🏆 {getMultiplayerWinner().name} Wins!
+                      </div>
+                      <div className="space-y-3">
+                        {players
+                          .sort((a, b) => (b.result?.score || 0) - (a.result?.score || 0))
+                          .map((player, index) => (
+                          <div 
+                            key={index}
+                            className={`flex justify-between items-center p-3 rounded-lg ${
+                              index === 0 
+                                ? 'bg-yellow-500/20 border border-yellow-500/30' 
+                                : 'bg-white/5'
+                            }`}
+                          >
+                            <span className="font-semibold">
+                              {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}.`} {player.name}
+                            </span>
+                            <div className="text-right">
+                              <div className="font-bold">{player.result?.score || 0} taps</div>
+                              <div className="text-sm text-gray-400">
+                                {player.result?.tapsPerSecond || 0} tps
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
             
-            <div className="space-x-4">
-              <button
-                onClick={resetGame}
-                className="bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white font-bold py-3 px-6 rounded-xl transition-all transform hover:scale-105"
-              >
-                Play Again
-              </button>
-              <Link
-                href="/"
-                className="inline-block bg-white/10 hover:bg-white/20 border border-white/20 px-6 py-3 rounded-xl font-semibold transition-all"
-              >
-                Back to Games
-              </Link>
-            </div>
+            {/* Only show buttons when fully finished or during transition */}
+            {(gameMode === "solo" || currentPlayerIndex >= players.length - 1) && (
+              <div className="space-x-4">
+                <button
+                  onClick={resetGame}
+                  className="bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 text-white font-bold py-3 px-6 rounded-xl transition-all transform hover:scale-105"
+                >
+                  Play Again
+                </button>
+                <Link
+                  href="/"
+                  className="inline-block bg-white/10 hover:bg-white/20 border border-white/20 px-6 py-3 rounded-xl font-semibold transition-all"
+                >
+                  Back to Games
+                </Link>
+              </div>
+            )}
           </div>
         )}
       </div>

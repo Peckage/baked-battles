@@ -131,7 +131,7 @@ export default function FingerOnScreen() {
     setChosenPlayer(null);
     setCountdown(null);
     setAutoCountdownStarted(false);
-    playerCount.current = 0;
+    playerCount.current = 0; // Reset player count properly
     if (liveCountdownRef.current) {
       clearTimeout(liveCountdownRef.current);
       liveCountdownRef.current = null;
@@ -166,52 +166,86 @@ export default function FingerOnScreen() {
     const rect = gameAreaRef.current?.getBoundingClientRect();
     if (!rect) return;
 
-    const newTouches: Touch[] = Array.from(e.touches).map((touch) => {
-      const existingTouchIndex = touches.findIndex(t => t.id === touch.identifier);
-      
-      if (existingTouchIndex >= 0) {
-        return {
-          ...touches[existingTouchIndex],
-          x: touch.clientX - rect.left,
-          y: touch.clientY - rect.top,
-        };
-      } else {
-        playerCount.current++;
-        return {
-          id: touch.identifier,
-          x: touch.clientX - rect.left,
-          y: touch.clientY - rect.top,
-          playerId: playerCount.current,
-          isChosen: false,
-          playerName: `Player ${playerCount.current}`,
-          color: colors[(playerCount.current - 1) % colors.length]
-        };
-      }
-    });
-
-    setTouches(newTouches);
+    if (isLiveMode) {
+      // Live mode: replace all touches with current active touches
+      const newTouches: Touch[] = Array.from(e.touches).map((touch) => {
+        const existingTouchIndex = touches.findIndex(t => t.id === touch.identifier);
+        
+        if (existingTouchIndex >= 0) {
+          return {
+            ...touches[existingTouchIndex],
+            x: touch.clientX - rect.left,
+            y: touch.clientY - rect.top,
+          };
+        } else {
+          playerCount.current++;
+          return {
+            id: touch.identifier,
+            x: touch.clientX - rect.left,
+            y: touch.clientY - rect.top,
+            playerId: playerCount.current,
+            isChosen: false,
+            playerName: `Player ${playerCount.current}`,
+            color: colors[(playerCount.current - 1) % colors.length]
+          };
+        }
+      });
+      setTouches(newTouches);
+    } else {
+      // Manual mode: add permanent spots for each new touch
+      Array.from(e.touches).forEach(touch => {
+        const touchX = touch.clientX - rect.left;
+        const touchY = touch.clientY - rect.top;
+        
+        const existingSpot = touches.find(t => 
+          Math.abs(t.x - touchX) < 40 && Math.abs(t.y - touchY) < 40
+        );
+        
+        if (!existingSpot) {
+          playerCount.current++;
+          const newTouch: Touch = {
+            id: touch.identifier,
+            x: touchX,
+            y: touchY,
+            playerId: playerCount.current,
+            isChosen: false,
+            playerName: `Player ${playerCount.current}`,
+            color: colors[(playerCount.current - 1) % colors.length]
+          };
+          setTouches(prev => [...prev, newTouch]);
+        }
+      });
+    }
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
-    if (gameState !== "waiting") return;
+    if (gameState !== "waiting" || !isLiveMode) return;
     e.preventDefault();
     
     const rect = gameAreaRef.current?.getBoundingClientRect();
     if (!rect) return;
 
+    // Optimize by only updating if position change is significant (reduce lag)
+    const threshold = 5; // pixels
+    
     setTouches(prev => {
-      const updated = [...prev];
-      Array.from(e.touches).forEach(touch => {
-        const index = updated.findIndex(t => t.id === touch.identifier);
-        if (index >= 0) {
-          updated[index] = {
-            ...updated[index],
-            x: touch.clientX - rect.left,
-            y: touch.clientY - rect.top
-          };
+      let hasChanged = false;
+      const updated = prev.map(touch => {
+        const liveTouch = Array.from(e.touches).find(t => t.identifier === touch.id);
+        if (liveTouch) {
+          const newX = liveTouch.clientX - rect.left;
+          const newY = liveTouch.clientY - rect.top;
+          
+          // Only update if movement is above threshold
+          if (Math.abs(newX - touch.x) > threshold || Math.abs(newY - touch.y) > threshold) {
+            hasChanged = true;
+            return { ...touch, x: newX, y: newY };
+          }
         }
+        return touch;
       });
-      return updated;
+      
+      return hasChanged ? updated : prev;
     });
   };
 
@@ -219,9 +253,12 @@ export default function FingerOnScreen() {
     if (gameState !== "waiting") return;
     e.preventDefault();
     
-    const activeTouchIds = Array.from(e.touches).map(t => t.identifier);
-    
-    setTouches(prev => prev.filter(touch => activeTouchIds.includes(touch.id)));
+    if (isLiveMode) {
+      // Live mode: remove touches that are no longer active
+      const activeTouchIds = Array.from(e.touches).map(t => t.identifier);
+      setTouches(prev => prev.filter(touch => activeTouchIds.includes(touch.id)));
+    }
+    // Manual mode: do nothing on touch end (spots remain permanent)
   };
 
   // Mouse events for desktop testing - different behavior for live vs manual mode
@@ -231,13 +268,16 @@ export default function FingerOnScreen() {
     const rect = gameAreaRef.current?.getBoundingClientRect();
     if (!rect) return;
 
+    const clickX = e.clientX - rect.left;
+    const clickY = e.clientY - rect.top;
+
     if (isLiveMode) {
-      // In live mode, mouse clicks simulate holding fingers
+      // In live mode, mouse clicks simulate holding fingers (removed on mouse up)
       playerCount.current++;
       const newTouch: Touch = {
         id: Date.now() + Math.random(),
-        x: e.clientX - rect.left,
-        y: e.clientY - rect.top,
+        x: clickX,
+        y: clickY,
         playerId: playerCount.current,
         isChosen: false,
         playerName: `Player ${playerCount.current}`,
@@ -246,20 +286,46 @@ export default function FingerOnScreen() {
 
       setTouches(prev => [...prev, newTouch]);
     } else {
-      // In manual mode, clicks add permanent spots
-      playerCount.current++;
-      const newTouch: Touch = {
-        id: Date.now() + Math.random(),
-        x: e.clientX - rect.left,
-        y: e.clientY - rect.top,
-        playerId: playerCount.current,
-        isChosen: false,
-        playerName: `Player ${playerCount.current}`,
-        color: colors[(playerCount.current - 1) % colors.length]
-      };
-
-      setTouches(prev => [...prev, newTouch]);
+      // In manual mode, each click toggles a permanent spot
+      const existingSpotIndex = touches.findIndex(touch => 
+        Math.abs(touch.x - clickX) < 40 && Math.abs(touch.y - clickY) < 40
+      );
+      
+      if (existingSpotIndex >= 0) {
+        // Remove existing spot if clicked on it
+        setTouches(prev => prev.filter((_, index) => index !== existingSpotIndex));
+      } else {
+        // Add new spot
+        playerCount.current++;
+        const newTouch: Touch = {
+          id: Date.now() + Math.random(),
+          x: clickX,
+          y: clickY,
+          playerId: playerCount.current,
+          isChosen: false,
+          playerName: `Player ${playerCount.current}`,
+          color: colors[(playerCount.current - 1) % colors.length]
+        };
+        
+        setTouches(prev => [...prev, newTouch]);
+      }
     }
+  };
+
+  const handleMouseUp = (e: React.MouseEvent) => {
+    // Only remove touches in live mode when mouse is released
+    if (gameState !== "waiting" || !isLiveMode) return;
+    
+    const rect = gameAreaRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    
+    const clickX = e.clientX - rect.left;
+    const clickY = e.clientY - rect.top;
+    
+    // Remove the touch that matches this position (for live mode)
+    setTouches(prev => prev.filter(touch => 
+      !(Math.abs(touch.x - clickX) < 20 && Math.abs(touch.y - clickY) < 20)
+    ));
   };
 
   return (
@@ -482,14 +548,25 @@ export default function FingerOnScreen() {
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
           onMouseDown={handleMouseDown}
+          onMouseUp={handleMouseUp}
           style={{ touchAction: 'none' }}
         >
           {gameState === "waiting" && touches.length === 0 && (
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="text-center">
-                <div className="text-4xl mb-4">👇</div>
-                <p className="text-xl font-bold text-gray-300">Touch and hold with your fingers!</p>
-                <p className="text-sm text-gray-400 mt-2">Keep them on screen until selection</p>
+                <div className="text-4xl mb-4">{isLiveMode ? "👇" : "🖱️"}</div>
+                <p className="text-xl font-bold text-gray-300">
+                  {isLiveMode 
+                    ? "Touch and hold with your fingers!" 
+                    : "Click to place permanent spots!"
+                  }
+                </p>
+                <p className="text-sm text-gray-400 mt-2">
+                  {isLiveMode 
+                    ? "Keep them on screen until selection" 
+                    : "Click spots to add/remove players"
+                  }
+                </p>
               </div>
             </div>
           )}

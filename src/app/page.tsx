@@ -1,11 +1,38 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export default function Home() {
   const year = new Date().getFullYear();
   const [hoveredGame, setHoveredGame] = useState<string | null>(null);
+  const [particles, setParticles] = useState<Array<{id: number, left: string, top: string, delay: string, duration: string}>>([]);
+  const [hoverParticles, setHoverParticles] = useState<Array<{id: number, left: string, top: string, delay: string}>>([]);
+
+  // Generate particles client-side to avoid hydration mismatch
+  useEffect(() => {
+    const generateParticles = () => {
+      return Array.from({length: 50}, (_, i) => ({
+        id: i,
+        left: `${Math.random() * 100}%`,
+        top: `${Math.random() * 100}%`,
+        delay: `${Math.random() * 5}s`,
+        duration: `${3 + Math.random() * 4}s`
+      }));
+    };
+    setParticles(generateParticles());
+
+    // Generate hover particles
+    const generateHoverParticles = () => {
+      return Array.from({length: 5}, (_, i) => ({
+        id: i,
+        left: `${20 + Math.random() * 60}%`,
+        top: `${20 + Math.random() * 60}%`,
+        delay: `${Math.random() * 2}s`
+      }));
+    };
+    setHoverParticles(generateHoverParticles());
+  }, []);
 
   const games = [
     { 
@@ -102,15 +129,15 @@ export default function Home() {
       
       {/* Floating Particles */}
       <div aria-hidden className="pointer-events-none absolute inset-0">
-        {[...Array(20)].map((_, i) => (
+        {particles.map((particle) => (
           <div
-            key={i}
+            key={particle.id}
             className="absolute w-2 h-2 bg-green-400/20 rounded-full animate-float"
             style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-              animationDelay: `${Math.random() * 5}s`,
-              animationDuration: `${3 + Math.random() * 4}s`
+              left: particle.left,
+              top: particle.top,
+              animationDelay: particle.delay,
+              animationDuration: particle.duration
             }}
           />
         ))}
@@ -340,14 +367,14 @@ export default function Home() {
                   {/* Hover Effect Particles */}
                   {hoveredGame === game.slug && (
                     <div className="absolute inset-0 pointer-events-none">
-                      {[...Array(5)].map((_, i) => (
+                      {hoverParticles.map((particle) => (
                         <div
-                          key={i}
+                          key={particle.id}
                           className={`absolute w-1 h-1 ${game.bgGlow} rounded-full animate-ping`}
                           style={{
-                            left: `${20 + Math.random() * 60}%`,
-                            top: `${20 + Math.random() * 60}%`,
-                            animationDelay: `${Math.random() * 2}s`
+                            left: particle.left,
+                            top: particle.top,
+                            animationDelay: particle.delay
                           }}
                         />
                       ))}
