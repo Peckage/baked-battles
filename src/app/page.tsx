@@ -415,7 +415,7 @@ export default function Home() {
                 <span>💬</span>
               </a>
               <div className="text-sm text-gray-400">
-                <div className="font-semibold text-green-400">1,200+ members</div>
+                <div className="font-semibold text-green-400">0 members</div>
                 <div>No spam, just good vibes</div>
               </div>
             </div>

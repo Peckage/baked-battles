@@ -22,7 +22,6 @@ export default function FingerOnScreen() {
   const [isLiveMode, setIsLiveMode] = useState(true); // Toggle between live and manual mode
   const [autoCountdownStarted, setAutoCountdownStarted] = useState(false);
   const gameAreaRef = useRef<HTMLDivElement>(null);
-  const playerCount = useRef(0);
   const liveCountdownRef = useRef<NodeJS.Timeout | null>(null);
 
   const colors = [
@@ -131,7 +130,6 @@ export default function FingerOnScreen() {
     setChosenPlayer(null);
     setCountdown(null);
     setAutoCountdownStarted(false);
-    playerCount.current = 0; // Reset player count properly
     if (liveCountdownRef.current) {
       clearTimeout(liveCountdownRef.current);
       liveCountdownRef.current = null;
@@ -159,6 +157,17 @@ export default function FingerOnScreen() {
     setRoundNumber(1);
   };
 
+  // Get the next consecutive player number
+  const getNextPlayerNumber = () => {
+    const existingNumbers = touches.map(t => t.playerId).sort((a, b) => a - b);
+    for (let i = 1; i <= existingNumbers.length + 1; i++) {
+      if (!existingNumbers.includes(i)) {
+        return i;
+      }
+    }
+    return 1;
+  };
+
   const handleTouchStart = (e: React.TouchEvent) => {
     if (gameState !== "waiting") return;
     e.preventDefault();
@@ -178,15 +187,15 @@ export default function FingerOnScreen() {
             y: touch.clientY - rect.top,
           };
         } else {
-          playerCount.current++;
+          const nextPlayerNum = getNextPlayerNumber();
           return {
             id: touch.identifier,
             x: touch.clientX - rect.left,
             y: touch.clientY - rect.top,
-            playerId: playerCount.current,
+            playerId: nextPlayerNum,
             isChosen: false,
-            playerName: `Player ${playerCount.current}`,
-            color: colors[(playerCount.current - 1) % colors.length]
+            playerName: `Player ${nextPlayerNum}`,
+            color: colors[(nextPlayerNum - 1) % colors.length]
           };
         }
       });
@@ -202,15 +211,15 @@ export default function FingerOnScreen() {
         );
         
         if (!existingSpot) {
-          playerCount.current++;
+          const nextPlayerNum = getNextPlayerNumber();
           const newTouch: Touch = {
             id: touch.identifier,
             x: touchX,
             y: touchY,
-            playerId: playerCount.current,
+            playerId: nextPlayerNum,
             isChosen: false,
-            playerName: `Player ${playerCount.current}`,
-            color: colors[(playerCount.current - 1) % colors.length]
+            playerName: `Player ${nextPlayerNum}`,
+            color: colors[(nextPlayerNum - 1) % colors.length]
           };
           setTouches(prev => [...prev, newTouch]);
         }
@@ -225,27 +234,21 @@ export default function FingerOnScreen() {
     const rect = gameAreaRef.current?.getBoundingClientRect();
     if (!rect) return;
 
-    // Optimize by only updating if position change is significant (reduce lag)
-    const threshold = 5; // pixels
-    
+    // Direct movement tracking - no threshold delay
     setTouches(prev => {
-      let hasChanged = false;
       const updated = prev.map(touch => {
         const liveTouch = Array.from(e.touches).find(t => t.identifier === touch.id);
         if (liveTouch) {
-          const newX = liveTouch.clientX - rect.left;
-          const newY = liveTouch.clientY - rect.top;
-          
-          // Only update if movement is above threshold
-          if (Math.abs(newX - touch.x) > threshold || Math.abs(newY - touch.y) > threshold) {
-            hasChanged = true;
-            return { ...touch, x: newX, y: newY };
-          }
+          return {
+            ...touch,
+            x: liveTouch.clientX - rect.left,
+            y: liveTouch.clientY - rect.top
+          };
         }
         return touch;
       });
       
-      return hasChanged ? updated : prev;
+      return updated;
     });
   };
 
@@ -273,15 +276,15 @@ export default function FingerOnScreen() {
 
     if (isLiveMode) {
       // In live mode, mouse clicks simulate holding fingers (removed on mouse up)
-      playerCount.current++;
+      const nextPlayerNum = getNextPlayerNumber();
       const newTouch: Touch = {
         id: Date.now() + Math.random(),
         x: clickX,
         y: clickY,
-        playerId: playerCount.current,
+        playerId: nextPlayerNum,
         isChosen: false,
-        playerName: `Player ${playerCount.current}`,
-        color: colors[(playerCount.current - 1) % colors.length]
+        playerName: `Player ${nextPlayerNum}`,
+        color: colors[(nextPlayerNum - 1) % colors.length]
       };
 
       setTouches(prev => [...prev, newTouch]);
@@ -296,15 +299,15 @@ export default function FingerOnScreen() {
         setTouches(prev => prev.filter((_, index) => index !== existingSpotIndex));
       } else {
         // Add new spot
-        playerCount.current++;
+        const nextPlayerNum = getNextPlayerNumber();
         const newTouch: Touch = {
           id: Date.now() + Math.random(),
           x: clickX,
           y: clickY,
-          playerId: playerCount.current,
+          playerId: nextPlayerNum,
           isChosen: false,
-          playerName: `Player ${playerCount.current}`,
-          color: colors[(playerCount.current - 1) % colors.length]
+          playerName: `Player ${nextPlayerNum}`,
+          color: colors[(nextPlayerNum - 1) % colors.length]
         };
         
         setTouches(prev => [...prev, newTouch]);
