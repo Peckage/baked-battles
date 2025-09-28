@@ -62,8 +62,10 @@ export default function HighLowDice() {
         clearInterval(rollInterval);
         const finalRoll = Math.floor(Math.random() * 6) + 1;
         setNextDie(finalRoll);
-        setIsRolling(false);
-        checkResult(finalRoll);
+        setTimeout(() => {
+          setIsRolling(false);
+          checkResult(finalRoll);
+        }, 100); // Small delay to ensure state is updated
       }
     }, 100);
   };

@@ -17,13 +17,6 @@ export default function Games() {
       available: true 
     },
     { 
-      name: "Green Light", 
-      tag: "no player limit • reaction", 
-      slug: "green-light",
-      description: "Tap when you see green, but watch out for red!",
-      available: true 
-    },
-    { 
       name: "High / Low Dice", 
       tag: "2 players • luck", 
       slug: "high-low-dice",
