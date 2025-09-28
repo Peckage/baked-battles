@@ -6,10 +6,10 @@ export default function Home() {
   const year = new Date().getFullYear();
 
   const games = [
-    { name: "Rock–Paper–Scissors (Hits)", tag: "2 players • super fast", soon: true },
-    { name: "Finger On Screen", tag: "2–5 players • mobile", soon: true },
-    { name: "Green Light", tag: "no player limit • reaction", soon: true },
-    { name: "High / Low Dice", tag: "2 players • luck", soon: true },
+    { name: "Rock–Paper–Scissors (Hits)", tag: "2 players • super fast", soon: false, slug: "rps-hits" },
+    { name: "Finger On Screen", tag: "2–5 players • mobile", soon: false, slug: "finger-on-screen" },
+    { name: "Green Light", tag: "no player limit • reaction", soon: false, slug: "green-light" },
+    { name: "High / Low Dice", tag: "2 players • luck", soon: false, slug: "high-low-dice" },
   ];
 
   return (
@@ -48,20 +48,8 @@ export default function Home() {
 
       {/* Main */}
       <main className="relative z-10 mx-auto max-w-6xl px-6 pb-24 pt-10 sm:pt-16">
-        {/* Under construction */}
-        <section className="rounded-xl border border-amber-300/30 bg-amber-200/10 p-4 text-amber-200">
-          <div className="flex items-center gap-3">
-            <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-              <path d="M1 21h22L12 2 1 21Zm12-3h-2v-2h2v2Zm0-4h-2v-4h2v4Z" />
-            </svg>
-            <p className="text-sm font-medium">
-              Under Construction: rolling, coding, and playtesting. Games available soon.
-            </p>
-          </div>
-        </section>
-
         {/* Hero */}
-        <section className="mt-10 grid gap-6 sm:grid-cols-5 sm:items-center">
+        <section className="grid gap-6 sm:grid-cols-5 sm:items-center">
           <div className="sm:col-span-3">
             <h1 className="bg-gradient-to-r from-lime-300 via-emerald-300 to-teal-300 bg-clip-text text-4xl font-extrabold tracking-tight text-transparent sm:text-5xl">
               Games for stoners who just want to vibe.
@@ -132,15 +120,22 @@ export default function Home() {
         <section id="games" className="mt-4">
           <div className="mb-4 flex items-baseline justify-between">
             <h2 className="text-xl font-semibold">Featured & Upcoming</h2>
+            <Link href="/games" className="text-sm text-emerald-400 hover:text-emerald-300">
+              View All Games →
+            </Link>
           </div>
 
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {games.map((g, i) => (
-              <article key={i} className="group overflow-hidden rounded-xl border border-white/10 bg-white/[0.02]">
+              <Link
+                key={i}
+                href={g.soon ? "#" : `/games/${g.slug}`}
+                className={`group overflow-hidden rounded-xl border ${g.soon ? 'border-white/10 bg-white/[0.02] cursor-not-allowed opacity-75' : 'border-white/10 hover:border-emerald-500/30 bg-white/[0.02] hover:bg-white/[0.04]'} transition-all duration-200`}
+              >
                 <div className="relative aspect-[16/9] overflow-hidden">
-                  <div className="h-full w-full bg-gradient-to-br from-emerald-500/20 via-lime-400/20 to-teal-400/20 blur-lg transition group-hover:scale-105" />
+                  <div className={`h-full w-full bg-gradient-to-br ${g.soon ? 'from-gray-600/20 via-gray-500/20 to-gray-400/20' : 'from-emerald-500/20 via-lime-400/20 to-teal-400/20'} blur-lg transition group-hover:scale-105`} />
                   <div className="absolute inset-0 flex items-center justify-center text-sm font-semibold text-white/80">
-                    Preview coming soon
+                    {g.soon ? 'Preview coming soon' : '🎮 Play Now!'}
                   </div>
                 </div>
                 <div className="flex items-center justify-between p-4">
@@ -152,7 +147,7 @@ export default function Home() {
                     <span className="rounded-full bg-white/5 px-2 py-1 text-xs text-white/70">Soon</span>
                   )}
                 </div>
-              </article>
+              </Link>
             ))}
           </div>
         </section>
